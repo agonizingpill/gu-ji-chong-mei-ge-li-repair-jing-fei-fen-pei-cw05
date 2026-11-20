@@ -10,6 +10,10 @@ logging.basicConfig(level=logging.INFO)
 @asynccontextmanager
 async def lifespan(app):
     Base.metadata.create_all(engine)
+    try:
+        from .upgrade import ensure_schema,backfill_step_funding
+        ensure_schema(engine);backfill_step_funding()
+    except Exception:logging.exception('schema upgrade failed')
     if os.getenv('SEED_DEMO','true')=='true':
         try:
             from .seed import seed

@@ -71,6 +71,9 @@ class Step(Base):
     depends_on:Mapped[int|None]=mapped_column(ForeignKey('steps.id'),nullable=True)
     done:Mapped[bool]=mapped_column(Boolean,default=False)
     evidence:Mapped[str]=mapped_column(String(200),default='')
+    # 占款时按工序均摊估价；迁移只改变未施工工序的承款专项，已签证工序留在原专项。
+    grant_id:Mapped[int|None]=mapped_column(ForeignKey('grants.id'),nullable=True)
+    amount_cents:Mapped[int]=mapped_column(Integer,default=0)
 class Grant(Base):
     __tablename__='grants'
     __table_args__=(CheckConstraint('budget_cents >= 0 AND reserved_cents >= 0 AND spent_cents >= 0'),CheckConstraint('reserved_cents + spent_cents <= budget_cents'))
@@ -87,7 +90,35 @@ class Encumbrance(Base):
     grant_id:Mapped[int]=mapped_column(ForeignKey('grants.id'))
     amount_cents:Mapped[int]=mapped_column(Integer)
     actual_cents:Mapped[int|None]=mapped_column(Integer,nullable=True)
+    # held 占用中 / settled 已核销 / released 已退回 / transferred 已迁移转出（保留历史，由后继占款承接）
     status:Mapped[str]=mapped_column(String(20),default='held')
+class EncumbranceTransfer(Base):
+    """未施工工序占款迁移存根：原占款行不删除，只缩减/标记 transferred，后继占款行保留对应关系。"""
+    __tablename__='encumbrance_transfers'
+    __table_args__=(CheckConstraint('amount_cents > 0 AND retained_cents >= 0'),)
+    id:Mapped[int]=mapped_column(primary_key=True)
+    treatment_id:Mapped[int]=mapped_column(ForeignKey('treatments.id'))
+    source_grant_id:Mapped[int]=mapped_column(ForeignKey('grants.id'))
+    target_grant_id:Mapped[int]=mapped_column(ForeignKey('grants.id'))
+    source_encumbrance_id:Mapped[int]=mapped_column(ForeignKey('encumbrances.id'))
+    target_encumbrance_id:Mapped[int]=mapped_column(ForeignKey('encumbrances.id'))
+    amount_cents:Mapped[int]=mapped_column(Integer)
+    retained_cents:Mapped[int]=mapped_column(Integer,default=0)
+    original_amount_cents:Mapped[int]=mapped_column(Integer)
+    signed_step_ids:Mapped[list]=mapped_column(JSON,default=list)
+    migrated_positions:Mapped[list]=mapped_column(JSON,default=list)
+    retained_positions:Mapped[list]=mapped_column(JSON,default=list)
+    source_reserved_before:Mapped[int]=mapped_column(Integer,default=0)
+    source_reserved_after:Mapped[int]=mapped_column(Integer,default=0)
+    target_reserved_before:Mapped[int]=mapped_column(Integer,default=0)
+    target_reserved_after:Mapped[int]=mapped_column(Integer,default=0)
+    source_available_before:Mapped[int]=mapped_column(Integer,default=0)
+    source_available_after:Mapped[int]=mapped_column(Integer,default=0)
+    target_available_before:Mapped[int]=mapped_column(Integer,default=0)
+    target_available_after:Mapped[int]=mapped_column(Integer,default=0)
+    idempotency_key:Mapped[str]=mapped_column(String(120),unique=True)
+    actor:Mapped[str]=mapped_column(String(40))
+    at:Mapped[datetime]=mapped_column(DateTime(timezone=True),default=now)
 class Handover(Base):
     __tablename__='handovers'
     id:Mapped[int]=mapped_column(primary_key=True)

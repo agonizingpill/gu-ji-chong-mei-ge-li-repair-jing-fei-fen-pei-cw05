@@ -15,7 +15,7 @@ def login(data:Login,db=Depends(session)):
     return {'token':issue(user),'username':user.username,'role':user.role}
 @router.get('/workspace')
 def workspace(db=Depends(session),user=Depends(current)):
-    models=[Accession,Observation,Cabinet,Isolation,RiskAssessment,Treatment,Step,Grant,Encumbrance,Handover]
+    models=[Accession,Observation,Cabinet,Isolation,RiskAssessment,Treatment,Step,Grant,Encumbrance,EncumbranceTransfer,Handover]
     return {m.__tablename__:[dump(v) for v in db.scalars(select(m).order_by(m.id))] for m in models}
 @router.get('/audit')
 def audits(db=Depends(session),user=Depends(supervisor)):return [dump(v) for v in db.scalars(select(Audit).order_by(Audit.id.desc()).limit(100))]
@@ -43,6 +43,8 @@ def step(id:int,data:EvidenceInput,db=Depends(session),user=Depends(editor)):ret
 def create_grant(data:GrantInput,db=Depends(session),user=Depends(supervisor)):return grant.create_grant(db,data,user)
 @router.post('/treatments/{id}/fund')
 def fund(id:int,data:FundInput,db=Depends(session),user=Depends(supervisor)):return grant.fund(db,id,data,user)
+@router.post('/treatments/{id}/migrate')
+def migrate(id:int,data:MigrationInput,db=Depends(session),user=Depends(supervisor)):return grant.migrate(db,id,data,user)
 @router.post('/treatments/{id}/settle')
 def settle(id:int,data:SettleInput,db=Depends(session),user=Depends(supervisor)):return grant.settle(db,id,data,user)
 @router.post('/handovers')

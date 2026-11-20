@@ -28,5 +28,6 @@ def seed():
             if code=='GB-A032':
                 grant=db.scalar(select(Grant).where(Grant.code=='GF-2026'));grant.spent_cents+=160000
                 db.add(Encumbrance(treatment_id=plan.id,grant_id=grant.id,amount_cents=180000,actual_cents=160000,status='settled'))
+                for step in db.scalars(select(Step).where(Step.treatment_id==plan.id)):step.grant_id=grant.id;step.amount_cents=60000
         db.commit()
 if __name__=='__main__':seed()

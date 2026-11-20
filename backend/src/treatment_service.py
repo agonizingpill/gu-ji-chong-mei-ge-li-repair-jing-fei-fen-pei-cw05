@@ -31,8 +31,11 @@ def cancel(db,id,user):
     plan=lock_treatment(db,id)
     reject(plan.status not in ('draft','funded'),'当前状态不能撤销')
     reject(db.scalar(select(Step).where(Step.treatment_id==id,Step.done==True)) is not None,'已有施工签证，不能撤销占款')
-    enc=db.scalar(select(Encumbrance).where(Encumbrance.treatment_id==id,Encumbrance.status=='held'))
-    if enc:
+    # 迁移后同一方案可能在多个专项留下占款，逐个退回，已迁出的存根行保持 transferred 历史。
+    encs=list(db.scalars(select(Encumbrance).where(Encumbrance.treatment_id==id,Encumbrance.status=='held').order_by(Encumbrance.id)))
+    for enc in encs:
         grant=get(db,Grant,enc.grant_id,True);grant.reserved_cents-=enc.amount_cents;enc.status='released'
+    for step in db.scalars(select(Step).where(Step.treatment_id==id)):
+        step.grant_id=None;step.amount_cents=0
     plan.status='cancelled';get(db,Accession,plan.accession_id,True).status='isolated'
     return finish(db,user,'撤销并退还占用',plan)

@@ -42,6 +42,12 @@ class FundInput(BaseModel):
     grant_id:int
 class SettleInput(BaseModel):
     actual_cents:int=Field(gt=0)
+class MigrationInput(BaseModel):
+    target_grant_id:int
+    source_grant_id:int|None=None
+    step_ids:list[int]|None=None
+    expected_signed_step_ids:list[int]|None=None
+    idempotency_key:str|None=Field(default=None,min_length=1,max_length=120)
 class HandoverInput(BaseModel):
     accession_id:int
     kind:str=Field(pattern='^(storage|exhibition)$')
